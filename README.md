@@ -2,7 +2,10 @@
 
 Generate C binaries with long, configurable symbol names and a seed-based XOR decryption routine.  
 This tool is intended for static analysis testing, reverse engineering practice, and CTF-style challenges for evaluating LLMs. 
-The goal is to better understand limitation of complexity and 
+
+The goal of this project is to better understand LLMs under stress. See the following introductory blog post. 
+
+https://hooked-on-mnemonics.blogspot.com/2026/05/stressing-llms-triage-stage.html
 
 Note:
 This is part of a series of weekend projects in which I vibe code tooling to better understand LLMs/AI-Agents.
