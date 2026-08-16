@@ -37,12 +37,24 @@ main{max-width:1240px;margin:0 auto;padding:28px 16px 64px}h2{font:700 25px/1.2 
 <div class="card"><span>Provider token work</span><strong>147.27M<small>cumulative processed tokens</small></strong></div>
 </section>
 <section class="context" aria-labelledby="context-title"><h2 id="context-title">About this benchmark</h2><p>This project evaluates local language models running on a single NVIDIA DGX Spark. It tests how well they can reverse-engineer <a href="https://github.com/alexander-hanel/StressingLLMs">generated</a> C binaries and recover a plaintext message protected by deterministic XOR-based decryption. Each fixture uses long symbols and a configurable number of transformation rounds to increase the analysis challenge.</p><p>For every attempt, the model inspects the binary, submits a Python decryptor, and the harness executes that code in a pinned no-network sandbox. The attempt passes when an executed Python block prints the expected plaintext. “Results by round” shows the pass/fail outcome for each model at each tested complexity level.</p></section>
-<section class="context"><h3>Example: two-round fixture</h3><p>This excerpt is taken from <code>fixtures/src/fx_r0002_sl0016_sp0000.c</code>. It shows the actual long symbol type, two generated round functions, state chaining, and the final byte-wise XOR loop.</p><div class="ide-window"><div class="ide-title">fx_r0002_sl0016_sp0000.c - C Source</div><pre class="code-example"><code>typedef struct TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens {
+<section class="context"><h3>Example: two-round fixture</h3><p>This is the complete source from <code>fixtures/src/fx_r0002_sl0016_sp0000.c</code>. It includes the helper, generated round functions, state chaining, and final byte-wise XOR loop.</p><div class="ide-window"><div class="ide-title">fx_r0002_sl0016_sp0000.c - C Source</div><pre class="code-example"><code>#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stddef.h&gt;
+
+static uint32_t xorshift32(uint32_t x) {
+    x ^= x &lt;&lt; 13;
+    x ^= x &gt;&gt; 17;
+    x ^= x &lt;&lt; 5;
+    return x;
+}
+
+typedef struct TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens {
     uint64_t a;
     uint64_t b;
     uint64_t c;
 } TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens;
 
+__attribute__((used, noinline))
 uint32_t TokenizerBench___R0(TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens *p) {
     uint32_t m1 = xorshift32(0x9336956du ^ 0x31bbf978u ^ (uint32_t)p-&gt;a);
     uint32_t m2 = xorshift32(0xcd6f55fcu ^ (uint32_t)p-&gt;b);
@@ -54,6 +66,7 @@ uint32_t TokenizerBench___R0(TokenizerBench___Type__LongRecord__With__Lots__Of__
     return (uint32_t)(r ^ (r &gt;&gt; 32));
 }
 
+__attribute__((used, noinline))
 uint32_t TokenizerBench___R1(TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens *p) {
     uint32_t m = xorshift32(0x366856bbu ^ (uint32_t)p-&gt;a);
     p-&gt;a ^= ((uint64_t)0x366856bbu &lt;&lt; 32) | (uint64_t)m;
@@ -64,6 +77,7 @@ uint32_t TokenizerBench___R1(TokenizerBench___Type__LongRecord__With__Lots__Of__
     return (uint32_t)(r ^ (r &gt;&gt; 32));
 }
 
+__attribute__((used, noinline))
 uint32_t derive_state(uint32_t seed) {
     TokenizerBench___Type__LongRecord__With__Lots__Of__Nested__Like__Tokens x = {
         seed, seed ^ 0x12345678ULL, seed + 0x9ULL
@@ -80,8 +94,8 @@ int main(void) {
         0xba, 0x15, 0xdd, 0x2e, 0x00 };
     uint32_t s = derive_state(0xdeadbeef);
     for (size_t i = 0; i &lt; sizeof(encrypted) - 1; i++) {
-    s = xorshift32(s + 0xA5A5A5A5u);
-    encrypted[i] ^= (uint8_t)(s &amp; 0xffu);
+        s = xorshift32(s + 0xA5A5A5A5u);
+        encrypted[i] ^= (uint8_t)(s &amp; 0xffu);
     }
     puts((const char *)encrypted);
     return 0;
