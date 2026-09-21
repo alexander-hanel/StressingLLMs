@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StressingLLMs-Tokens: Tokenization and Source-Recovery Results</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #161b22;
+    --panel2: #1c232d;
+    --ink: #e6edf3;
+    --muted: #9aa7b4;
+    --line: #2b3440;
+    --accent: #6ea8fe;
+    --accent2: #f1b26a;
+    --good: #7ee787;
+    --bad: #ff7b72;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 4rem 1.5rem 3rem;
+    background: radial-gradient(1200px 500px at 20% -10%, #1f2b3d 0%, transparent 60%), var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.8rem); margin: 0 0 .6rem; letter-spacing: -.02em; }
+  h1 .sub { display:block; font-size:.5em; color: var(--accent); font-weight:600; letter-spacing:.14em; text-transform:uppercase; margin-bottom:.7rem; }
+  .lede { color: var(--muted); font-size: 1.1rem; max-width: 62ch; }
+  .tldr { color: var(--ink); max-width: 62ch; margin: 1.15rem 0 0; }
+  .tldr strong { color: var(--accent); }
+  .exploratory {
+    color: var(--muted); max-width: 70ch; font-size: .78rem; line-height: 1.65;
+    margin: .8rem 0 0; padding: .7rem .9rem; border-left: 2px solid var(--accent);
+    background: rgba(110,168,254,.05);
+  }
+  .exploratory strong { color: var(--ink); font-weight: 600; }
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(15,18,22,.85); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display:flex; gap:1.1rem; flex-wrap:wrap; padding:.7rem 1.5rem; font-size:.88rem; }
+  nav a { color: var(--muted); text-decoration:none; padding:.2rem .1rem; border-bottom:2px solid transparent; }
+  nav a:hover { color: var(--ink); border-color: var(--accent); }
+  main { padding: 3rem 1.5rem 5rem; }
+  section { margin: 0 auto 3.5rem; max-width: 980px; }
+  h2 { font-size: 1.5rem; margin: 0 0 1rem; letter-spacing:-.01em; }
+  h2 .n { color: var(--accent); font-family: var(--mono); font-size:.8em; margin-right:.6rem; }
+  h3 { font-size: 1.08rem; margin: 1.8rem 0 .6rem; color: var(--ink); }
+  h4 { font-size: .98rem; margin: 1.9rem 0 .7rem; color: var(--accent2);
+       text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+  h5 { font-size: .92rem; margin: 1.3rem 0 .35rem; color: var(--ink);
+       font-weight: 600; letter-spacing: .01em; }
+  p { margin: .7rem 0; }
+  .muted { color: var(--muted); }
+  .grid { display:grid; gap:1rem; }
+  .cols-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card {
+    background: var(--panel); border:1px solid var(--line); border-radius:12px; padding:1.15rem 1.25rem;
+  }
+  .card h3 { margin-top:0; }
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code { background: var(--panel2); border:1px solid var(--line); border-radius:5px; padding:.12em .38em; }
+  pre {
+    background: var(--panel2); border:1px solid var(--line); border-radius:10px;
+    padding:1rem 1.1rem; overflow:auto; font-family:var(--mono); font-size:.84rem; line-height:1.55;
+  }
+  pre.code-wrap { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+  header { position: relative; }
+  .credit {
+    position: absolute; top: 1.35rem; right: 1.5rem; z-index: 5;
+    padding: .45rem .85rem;
+    font-size: .82rem; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .credit a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .credit a:hover { text-decoration: underline; }
+  .credit .sep { color: var(--line); margin: 0 .45rem; }
+  @media (max-width: 640px) {
+    .credit { font-size: .72rem; padding: .4rem .6rem; }
+  }
+  pre .c { color: var(--muted); }
+  pre .k { color: var(--accent); }
+  pre .s { color: var(--good); }
+  table { width:100%; border-collapse: collapse; margin: 1rem 0; font-size:.92rem; }
+  th, td { text-align:left; padding:.55rem .7rem; border-bottom:1px solid var(--line); }
+  th { color: var(--muted); font-weight:600; font-size:.82rem; text-transform:uppercase; letter-spacing:.05em; }
+  td.num, th.num { text-align:right; font-family:var(--mono); }
+  tbody tr:hover { background: var(--panel); }
+  .pill { display:inline-block; font-size:.72rem; padding:.14rem .55rem; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .pill.ok { color:var(--good); border-color:#2b4a33; background:#12251a; }
+  .pill.no { color:var(--bad); border-color:#4a2b2b; background:#251212; }
+  .callout {
+    border-left:3px solid var(--accent); background: var(--panel);
+    border-radius:0 8px 8px 0; padding:.9rem 1.1rem; margin:1.2rem 0;
+  }
+  .callout.warn { border-color: var(--accent2); }
+  .callout.bad { border-color: var(--bad); }
+  .bar { height: 10px; border-radius:6px; background: var(--panel2); overflow:hidden; border:1px solid var(--line); }
+  .bar > i { display:block; height:100%; background: linear-gradient(90deg, #3f6fbf, var(--accent)); }
+  .bar.wide > i { background: linear-gradient(90deg, #b8612f, var(--accent2)); }
+  .bar.hot > i { background: linear-gradient(90deg, #a03030, var(--bad)); }
+  .legend { font-size:.82rem; color:var(--muted); margin-top:.4rem; }
+  footer { border-top:1px solid var(--line); color: var(--muted); padding:2rem 1.5rem; font-size:.9rem; }
+  a { color: var(--accent); }
+  .measurement-grid {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; margin-top:.75rem;
+  }
+  .measurement-card {
+    background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:.85rem .9rem;
+  }
+  .measurement-head { display:flex; align-items:center; gap:.55rem; margin-bottom:.65rem; }
+  .measurement-head .index { color:var(--accent); font:700 .72rem var(--mono); }
+  .measurement-head strong { font-size:.92rem; }
+  .measurement-head .kind {
+    margin-left:auto; color:var(--muted); font:600 .62rem var(--mono);
+    text-transform:uppercase; letter-spacing:.06em;
+  }
+  .metric-chips { display:flex; flex-wrap:wrap; gap:.35rem; }
+  .metric-chips span {
+    padding:.2rem .48rem; border:1px solid var(--line); border-radius:999px;
+    background:var(--panel); color:var(--muted); font:500 .7rem var(--mono);
+  }
+  .measurement-note { margin-top:.7rem; color:var(--muted); font-size:.78rem; }
+  .table-scroll { overflow-x:auto; }
+  .source-results { table-layout:fixed; font-size:.78rem; }
+  .source-results th, .source-results td { padding:.48rem .34rem; white-space:nowrap; }
+  .source-results th { font-size:.68rem; white-space:normal; line-height:1.35; }
+  .metric-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin:1.2rem 0;
+  }
+  .metric {
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1.05rem 1.15rem;
+  }
+  .metric .label {
+    color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;
+  }
+  .metric strong { display:block; margin:.25rem 0; font-size:1.7rem; line-height:1.2; }
+  .result-bars { display:grid; gap:.8rem; margin:1.1rem 0; }
+  .result-row {
+    display:grid; grid-template-columns:5rem minmax(160px,1fr) 6.5rem; gap:.8rem; align-items:center;
+    font-family:var(--mono); font-size:.82rem;
+  }
+  .result-row .value { text-align:right; }
+  .tier-bar { position:relative; overflow:visible; }
+  .tier-line {
+    position:absolute; left:90.79%; top:-5px; bottom:-5px; border-left:2px solid var(--bad); z-index:2;
+  }
+  .tier-label {
+    position:absolute; right:9.21%; bottom:calc(100% + 7px); transform:translateX(50%);
+    color:var(--bad); font:700 .68rem var(--mono); white-space:nowrap;
+  }
+  .obs { color:var(--good); }
+  .hyp { color:var(--accent2); }
+  @media (max-width:640px) {
+    .measurement-grid { grid-template-columns:1fr; }
+    .result-row { grid-template-columns:4rem minmax(110px,1fr) 5.2rem; gap:.5rem; }
+  }
+</style>
+<style>
+/* Design study: a quiet research notebook with interactive teaching diagrams. */
+:root { --bg:#101315; --panel:#181d20; --panel2:#20272b; --ink:#edf0e9; --muted:#abb5b7; --line:#333d41; --accent:#c4e991; --accent2:#b9a8f4; --good:#c4e991; --bad:#ff9c8c; }
+html { scroll-padding-top:32px; }
+body { font-size:17px; line-height:1.75; padding-left:232px; }
+body > header { padding:40px 56px 28px; background:radial-gradient(ellipse at 100% 0%,#233028 0,transparent 55%); }
+header .wrap,main,footer .wrap { max-width:1120px; margin:auto; }
+header .wrap { max-width:1008px; }
+header h1 { font-size:clamp(44px,5.7vw,78px); font-weight:550; line-height:1.04; letter-spacing:-.055em; max-width:880px; margin:24px 0; }
+header h1 em { color:var(--accent); font-style:normal; }
+header h1 .sub { font:12px var(--mono); letter-spacing:.15em; margin-bottom:28px; }
+header .credit { position:static; padding:0; margin:0 auto 24px; max-width:1008px; background:none; border:0; border-radius:0; font-size:12px; white-space:normal; }
+.lede { font-size:17px; max-width:72ch; line-height:1.8; }
+.tldr { font-size:15px; max-width:80ch; }
+.exploratory { font-size:12px; max-width:90ch; border-color:var(--accent); background:#c4e99108; margin-top:20px; }
+body > nav { position:fixed; left:0; top:0; bottom:0; width:232px; overflow-y:auto; background:#14191b; border-right:1px solid var(--line); border-bottom:0; backdrop-filter:none; }
+nav .wrap { padding:35px 20px; display:flex; flex-direction:column; gap:3px; font-size:13px; }
+.rail-brand { color:var(--ink); font:600 13px var(--mono); letter-spacing:.05em; padding:0 10px; margin-bottom:42px; }
+.rail-brand span { display:block; font:11px/1.6 var(--mono); color:var(--muted); margin-top:9px; letter-spacing:0; }
+.rail-label { color:var(--muted); font:10px var(--mono); letter-spacing:.08em; padding:0 10px; margin-bottom:15px; }
+nav a { border:0; padding:9px 10px; border-radius:5px; }
+nav a:hover,nav a[aria-current="location"] { background:#c4e9910c; color:var(--accent); }
+nav .original-link { margin-top:30px; border-top:1px solid var(--line); padding-top:20px; border-radius:0; font-size:12px; }
+main { padding:28px 56px; }
+section { max-width:none; margin:0 0 76px; min-width:0; }
+section:not(.learning-lab) { border-top:1px solid var(--line); padding-top:38px; }
+h2 { font-size:clamp(26px,3vw,36px); line-height:1.2; letter-spacing:-.035em; font-weight:550; margin-bottom:18px; }
+h2 .n { display:block; font:12px var(--mono); margin-bottom:15px; color:var(--accent); }
+h3 { font-size:21px; line-height:1.4; margin-top:36px; font-weight:550; letter-spacing:-.015em; }
+h4 { font-size:13px; letter-spacing:.06em; }
+h5 { font-size:16px; }
+section > p { max-width:80ch; }
+.card { border-radius:7px; padding:24px; }
+.card h3 { font-size:18px; }
+.card p { font-size:15px; }
+.callout { border-radius:0; padding:20px 24px; font-size:15px; }
+.metric { border-radius:6px; }
+.metric strong { font-weight:550; font-variant-numeric:tabular-nums; }
+.metric .muted { font-size:13px; }
+.measurement-grid { gap:12px; }
+.measurement-card { background:var(--bg); border-radius:5px; padding:18px; }
+.measurement-head { flex-wrap:wrap; }
+.metric-chips span { font-size:12px; border:0; border-radius:3px; background:var(--panel2); }
+.measurement-note { font-size:13px; }
+pre { font-size:13px; line-height:1.8; border-radius:5px; background:#0d1113; padding:22px; }
+table { font-size:14px; }
+th { font-size:11px; }
+td,th { padding:12px; }
+.source-results { table-layout:auto; min-width:880px; font-size:13px; }
+.source-results th { font-size:11px; }
+.source-results th,.source-results td { padding:13px 10px; }
+.table-scroll { max-width:100%; }
+.mock-table-scroll { overflow:auto; max-width:100%; }
+.learning-lab { margin-bottom:24px; }
+.learning-lab h2 { font-size:clamp(24px,2.5vw,30px); margin-bottom:10px; }
+.section-kicker { display:flex; justify-content:space-between; align-items:center; font:11px var(--mono); letter-spacing:.1em; color:var(--accent); margin:0 0 12px; }
+.section-kicker:not(:first-child) { margin-top:30px; padding-top:22px; border-top:1px solid var(--line); }
+.section-kicker span { color:var(--muted); }
+.intro { color:var(--muted); font-size:16px; max-width:74ch; margin-bottom:14px; }
+.lab-controls { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin:14px 0; }
+.sample-controls { align-items:flex-start; flex-direction:column; gap:8px; }
+.control-label { font-size:13px; color:var(--ink); font-weight:600; }
+.control-label span { color:var(--muted); font-weight:400; }
+.choice-group { display:flex; flex-wrap:wrap; gap:5px; }
+button,select { font:inherit; }
+.choice-group button { background:var(--panel2); border:1px solid #68767b; border-radius:5px; padding:9px 13px; color:var(--ink); font-size:13px; cursor:pointer; min-height:44px; }
+.choice-group button::before { content:'○'; display:inline-block; margin-right:7px; }
+.choice-group button[aria-pressed="true"]::before { content:'●'; }
+.choice-group button:hover { border-color:var(--accent); color:var(--ink); }
+.choice-group button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#162015; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+.token-stage { display:grid; grid-template-columns:1fr 1.5fr; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel); }
+.input-stage { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:30px; border-right:1px solid var(--line); background:linear-gradient(145deg,#232c26,#181d20); min-width:0; }
+.micro { color:var(--muted); font:11px var(--mono); letter-spacing:.06em; }
+.input-stage strong { font:500 clamp(20px,2.6vw,34px)/1.4 var(--mono); margin:20px 0; overflow-wrap:anywhere; max-width:100%; }
+.input-stage code { font-size:12px; background:none; padding:0; border:0; color:var(--accent); overflow-wrap:anywhere; }
+.input-stage p { font-size:12px; color:var(--muted); }
+.token-output { padding:20px; min-width:0; }
+.output-title { display:flex; justify-content:space-between; gap:15px; font-size:14px; }
+.output-title small { color:var(--muted); margin-left:8px; font-size:11px; }
+.output-title strong { font:13px var(--mono); color:var(--accent); }
+.token-blocks { display:flex; flex-wrap:wrap; gap:5px; margin:10px 0 16px; min-height:30px; }
+.token-blocks i { width:27px; height:30px; border-radius:3px; border:1px solid #c4e99170; background:#c4e99125; }
+.token-blocks.alternate i { border-color:#b9a8f470; background:#b9a8f425; }
+.fine-print { color:var(--muted); font-size:12px; line-height:1.7; margin:15px 0; }
+.insight { font-size:15px; padding:0; color:var(--ink); }
+.select-label { color:var(--muted); font-size:12px; display:flex; align-items:center; gap:9px; }
+select { background:var(--panel); border:1px solid var(--line); color:var(--ink); padding:10px; border-radius:5px; font-size:13px; }
+.comparison-panel { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:28px; }
+.chart-meta { display:flex; justify-content:space-between; gap:16px; font:10px var(--mono); color:var(--muted); }
+.fixture-chart { display:grid; gap:16px; margin:22px 0; }
+.fixture-row { display:grid; grid-template-columns:130px minmax(0,1fr) 100px; gap:16px; align-items:center; font-size:13px; }
+.fixture-row small { display:block; color:var(--muted); font-size:11px; }
+.fixture-track { background:var(--panel2); height:24px; border-radius:3px; }
+.fixture-track i { display:block; height:100%; width:0; border-radius:3px; background:var(--accent); transition:width .25s ease; }
+.fixture-row:nth-child(1) i { background:#89999d; }
+.fixture-row:nth-child(2) i { background:var(--accent2); }
+.fixture-row output { text-align:right; font:14px var(--mono); font-variant-numeric:tabular-nums; }
+.comparison-takeaway { border-top:1px solid var(--line); padding-top:20px; display:flex; align-items:center; gap:24px; }
+.comparison-takeaway > strong { color:var(--accent); font-size:46px; line-height:1; font-weight:500; letter-spacing:-.05em; }
+.comparison-takeaway p { font-size:13px; color:var(--muted); margin:0; }
+.billing-layout { display:grid; grid-template-columns:1fr 1.2fr; gap:20px; }
+.attempt-choices { display:grid; gap:9px; }
+.attempt-choices button { display:grid; grid-template-columns:1fr auto; gap:6px 10px; text-align:left; border:1px solid var(--line); background:var(--panel); color:var(--ink); padding:18px 20px; border-radius:6px; cursor:pointer; }
+.attempt-choices button[aria-pressed="true"] { border-color:var(--accent); background:#c4e99109; }
+.attempt-choices button > span:first-child { font-size:16px; }
+.attempt-choices small { font-size:11px; color:var(--muted); }
+.attempt-choices button > span > small { display:block; }
+.attempt-choices button strong { font:16px var(--mono); }
+.attempt-bar { grid-column:1/-1; height:5px; background:var(--panel2); margin:5px 0; }
+.attempt-bar i { display:block; height:100%; background:var(--accent); }
+.receipt { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:26px; }
+.receipt dl { margin:24px 0; }
+.receipt dl > div { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:18px 0; }
+.receipt dt { font-size:14px; }
+.receipt dt small { display:block; font:10px/1.8 var(--mono); color:var(--muted); }
+.receipt dd { margin:0; font:14px var(--mono); }
+.receipt .receipt-total { border-top:1px solid var(--line); padding-top:20px; }
+.receipt-total dd { font-size:25px; color:var(--accent); }
+.receipt p,.receipt a { font-size:12px; }
+.receipt p { color:var(--muted); }
+.chapter-divider { margin:18px 0 0; font-size:13px; }
+details.code-disclosure { margin:20px 0; border:1px solid var(--line); border-radius:5px; background:var(--panel); }
+details.code-disclosure > summary { cursor:pointer; padding:15px 20px; font-size:13px; color:var(--accent); }
+details.code-disclosure pre { border:0; margin:0; }
+.reading-progress { position:fixed; top:0; left:232px; right:0; height:3px; z-index:30; }
+.reading-progress span { display:block; width:0; height:100%; background:var(--accent); }
+.skip-link { position:fixed; left:250px; top:10px; z-index:50; background:var(--accent); color:var(--bg); padding:10px 20px; clip-path:inset(100%); }
+.skip-link:focus { clip-path:none; }
+@media(max-width:1050px) { body{padding-left:196px} body>nav{width:196px} nav .wrap{padding:28px 12px} main{padding:35px 28px} body>header{padding:45px 28px 32px} .reading-progress{left:196px} .billing-layout{grid-template-columns:1fr} .attempt-choices{grid-template-columns:repeat(3,minmax(0,1fr))} .attempt-choices button{grid-template-columns:1fr;padding:15px} .fixture-row{grid-template-columns:105px minmax(0,1fr) 90px;gap:12px} }
+@media(max-width:740px) { body{padding-left:0;font-size:16px} body>nav{position:relative;width:100%;border-right:0;border-bottom:1px solid var(--line)} nav .wrap{padding:15px 20px;flex-direction:row;gap:7px;overflow-x:auto;flex-wrap:nowrap} nav a{flex-shrink:0;padding:8px;font-size:12px} .rail-brand,.rail-label{display:none} nav .original-link{margin:0;border:0;padding:8px} body>header{padding:24px 20px 30px} header .credit{margin-bottom:32px} header h1{font-size:51px} .lede{font-size:16px} main{padding:35px 20px} .token-stage{grid-template-columns:1fr} .input-stage{padding:24px;border-right:0;border-bottom:1px solid var(--line)} .input-stage strong{margin:10px 0} .token-output{padding:24px} .comparison-panel{padding:20px 15px} .fixture-row{grid-template-columns:85px minmax(0,1fr) 72px;gap:9px;font-size:12px} .fixture-row output{font-size:12px} .comparison-takeaway{gap:15px} .comparison-takeaway>strong{font-size:37px} .chart-meta{font-size:9px} .attempt-choices{grid-template-columns:1fr} .attempt-choices button{grid-template-columns:1fr auto} .receipt{padding:22px} .cols-3,.cols-2{grid-template-columns:1fr} .measurement-grid{grid-template-columns:1fr} .reading-progress{left:0} .skip-link{left:20px} .section-kicker:not(:first-child){margin-top:45px} footer{padding:25px 20px} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *,*::before,*::after{transition:none!important} }
+@media(max-width:740px) { .section-kicker:not(:first-child){margin-top:26px} .token-output{padding:20px} header .credit{margin-bottom:20px} }
+@media print { body{padding:0} body>nav,.reading-progress,.skip-link{display:none} header h1{font-size:40px} main{padding:20px} }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#learning-lab">Skip to interactive examples</a>
+<div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+
+<header>
+  <div class="credit">
+    Created by <a href="https://github.com/alexander-hanel" target="_blank" rel="noopener noreferrer">Alexander Hanel</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/alexander-hanel/StressingLLMs" target="_blank" rel="noopener noreferrer">Repository</a>
+  </div>
+  <div class="wrap">
+    <h1>
+      <span class="sub">StressingLLMs Tokens</span>
+      The cost of<br><em>unfamiliar text.</em>
+    </h1>
+    <p class="lede">
+      This project studies <strong>tokenization</strong>: the step that turns raw text into the
+      small pieces an AI model actually reads. It builds controlled, real C source files to
+      measure how many tokens different kinds of text produce and which kinds of text are
+      the most expensive to tokenize. This extended copy also follows those fixtures into a
+      source-recovery benchmark to measure whether a model can still recover the algorithm.
+    </p>
+    <p class="tldr"><strong>TL;DR:</strong> Rare high-plane Unicode can multiply an LLM request's token count and cost, creating a context and billing amplification risk for systems that process untrusted text.</p>
+    <p class="exploratory"><strong>Exploratory use:</strong> The author created this page to examine tokenizer and source-recovery data and identify patterns. Its comparisons, security implications, and estimates should not be treated as definitive model rankings, proven exploitability, or absolute capability measurements.</p>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <span class="rail-brand">STRESSINGLLMS<span>Tokens / research notebook</span></span>
+    <span class="rail-label">EXPLORE THE EVIDENCE</span>
+    <a href="#learning-lab">Interactive overview</a>
+    <a href="#what">What it is</a>
+    <a href="#tokenizer">Tokenizers</a>
+    <a href="#fixture">The fixtures</a>
+    <a href="#sweeps">Experiments</a>
+    <a href="#findings">Findings</a>
+    <a href="#goal">The goal</a>
+    <a href="#examples">Examples</a>
+    <a href="#source-recovery">Model test</a>
+    <a href="#glossary">Glossary</a>
+  </div>
+</nav>
+
+<main>
+<section id="learning-lab" class="learning-lab" aria-labelledby="lab-heading">
+  <div class="section-kicker">START HERE <span>01 / 03</span></div>
+  <h2 id="lab-heading">Same text. Different token counts.</h2>
+  <p class="intro">A character count tells only part of the story. Explore how two measured tokenizers represent the same input.</p>
+  <noscript><p class="callout">Enable JavaScript to use the interactive comparisons. All measurements and examples remain available in the chapters below.</p></noscript>
+  <div class="lab-controls sample-controls">
+    <div class="control-label" id="sample-control-label">Choose an example <span>to update the counts below.</span></div>
+    <div class="choice-group" role="group" aria-labelledby="sample-control-label">
+      <button type="button" data-sample="identifier" aria-pressed="false">Identifier</button>
+      <button type="button" data-sample="digits" aria-pressed="false">Digits</button>
+      <button type="button" data-sample="emoji" aria-pressed="false">Emoji</button>
+      <button type="button" data-sample="unicode" aria-pressed="true">High-plane Unicode</button>
+    </div>
+  </div>
+  <div class="token-stage" aria-live="polite" aria-atomic="true">
+    <div class="input-stage"><span class="micro">INPUT</span><strong id="sample-display">U+30000</strong><code id="sample-bytes">F0 B0 80 80</code><p id="sample-size">1 character · 4 UTF-8 bytes</p></div>
+    <div class="token-output"><div class="output-title"><span>Nemotron <small>Model A</small></span><strong id="a-count">4 tokens</strong></div><div id="a-blocks" class="token-blocks" aria-hidden="true"></div><div class="output-title"><span>DeepSeek <small>Model B</small></span><strong id="b-count">4 tokens</strong></div><div id="b-blocks" class="token-blocks alternate" aria-hidden="true"></div><p class="fine-print">Each block represents one token. These are recorded counts, not a live tokenizer or a display of token boundaries.</p></div>
+  </div>
+  <p id="sample-explanation" class="insight">This four-byte character uses four tokens in both tested vocabularies.</p>
+
+  <div class="section-kicker">COMPARE THE FIXTURES <span>02 / 03</span></div>
+  <div class="comparison-heading"><div><h2>Choose what you hold constant.</h2><p class="intro">Three C fixtures, eight rounds, the same message. Change the denominator to see what the amplification means.</p></div></div>
+  <div class="lab-controls">
+    <div class="choice-group" role="group" aria-label="Comparison measure"><button type="button" data-measure="tokens" aria-pressed="true">Total tokens</button><button type="button" data-measure="character" aria-pressed="false">Per character</button><button type="button" data-measure="byte" aria-pressed="false">Per UTF-8 byte</button></div>
+    <label class="select-label">Tokenizer <select id="fixture-model"><option value="a">Nemotron / A</option><option value="b">DeepSeek / B</option></select></label>
+  </div>
+  <div class="comparison-panel">
+    <div class="chart-meta"><span id="chart-unit">TOKENS / COMPLETE SOURCE</span><span>Measured · 3 fixtures</span></div>
+    <div id="fixture-chart" class="fixture-chart" aria-live="polite"></div>
+    <div class="comparison-takeaway"><strong id="amplification">8.38×</strong><p id="amplification-text">as many tokens as the repetitive fixture.<br>The Unicode file also contains more UTF-8 bytes.</p></div>
+  </div>
+  <p class="fine-print">The bars share a zero baseline and rescale for the selected unit. Per-byte comparisons normalize the observed counts; they are not additional experiments with equal-size files.</p>
+
+  <div class="section-kicker">FOLLOW THE BILL <span>03 / 03</span></div>
+  <h2>Where the cost jumps.</h2>
+  <p class="intro">Astra passed each of these three five-round fixtures. The largest prompt crossed the recorded 272K pricing threshold.</p>
+  <div class="billing-layout">
+    <div class="attempt-choices" role="group" aria-label="Select an Astra attempt">
+      <button type="button" data-attempt="0" aria-pressed="false"><span>1,024 <small>symbol characters</small></span><strong>$1.03597</strong><span class="attempt-bar" aria-hidden="true"><i style="width:13.75%"></i></span><small>23.0 s · PASS</small></button>
+      <button type="button" data-attempt="1" aria-pressed="false"><span>2,048 <small>symbol characters</small></span><strong>$1.95303</strong><span class="attempt-bar" aria-hidden="true"><i style="width:25.92%"></i></span><small>24.5 s · PASS</small></button>
+      <button type="button" data-attempt="2" aria-pressed="true"><span>4,096 <small>symbol characters</small></span><strong>$7.53566</strong><span class="attempt-bar" aria-hidden="true"><i style="width:100%"></i></span><small>24.3 s · PASS</small></button>
+    </div>
+    <div class="receipt" aria-live="polite" aria-atomic="true"><span class="micro">RECORDED BILLING / <span id="receipt-length">4,096</span></span><dl><div><dt>Cache write <small id="write-detail">298,670 × $25 / million</small></dt><dd id="write-cost">$7.46675</dd></div><div><dt>Output <small id="output-detail">918 × $75 / million</small></dt><dd id="output-cost">$0.06885</dd></div><div><dt>Ordinary input <small id="input-detail">3 × $20 / million</small></dt><dd id="input-cost">$0.00006</dd></div><div class="receipt-total"><dt>Total</dt><dd id="total-cost">$7.53566</dd></div></dl><p id="tier-explanation">Above 272K: cache-write pricing doubles. The same counts at the lower tier would cost $3.77931.</p><a href="#source-recovery">Read the attempts and pricing evidence ↓</a></div>
+  </div>
+  <p class="fine-print">One attempt per length. These provider counters are separate from the two local tokenizer measurements above. Pricing is the rate recorded during the experiment.</p>
+  <p class="chapter-divider"><a href="#what">Methods, runnable examples, and full evidence ↓</a></p>
+</section>
+
+<!-- ============================ WHAT ============================ -->
+<section id="what">
+  <h2><span class="n">01</span>What the project is</h2>
+  <p>
+    Large language models don't read characters or words. They read <strong>tokens</strong> which are
+    subword chunks produced by a <em>tokenizer</em>. A tokenizer is a program with a fixed
+    dictionary (a <strong>vocabulary</strong>) of pieces it knows how to recognize. It greedily
+    chops text into those pieces.
+  </p>
+  <p>
+    Tokens determine context use and price. A model's ability to interpret a string also depends
+    on how the tokenizer splits it. Some inputs are cheap per character; others use far more
+    tokens than their length suggests.
+  </p>
+  <p>
+    To study this precisely, the project needs text whose structure we control completely. So it
+    generates <strong>real, compilable C programs</strong> that contain very long, deliberately
+    shaped identifier names. Those names become the test inputs for the tokenizer. Generating
+    them locally lets us vary length, repetition, or diversity one at a time and measure the effect.
+  </p>
+
+  <div class="callout">
+    <strong>Measurements</strong>
+    <div class="measurement-grid">
+      <div class="measurement-card">
+        <div class="measurement-head"><span class="index">01</span><strong>Input</strong><span class="kind">Controlled</span></div>
+        <div class="metric-chips"><span>characters</span><span>UTF-8 bytes</span><span>repetition</span><span>diversity</span><span>alphabet</span><span>rounds</span></div>
+      </div>
+      <div class="measurement-card">
+        <div class="measurement-head"><span class="index">02</span><strong>Tokenization</strong><span class="kind">Recorded + derived</span></div>
+        <div class="metric-chips"><span>tokens</span><span>tokens/character</span><span>tokens/byte</span><span>vocabulary variation</span></div>
+      </div>
+      <div class="measurement-card">
+        <div class="measurement-head"><span class="index">03</span><strong>Performance and cost</strong><span class="kind">Recorded + derived</span></div>
+        <div class="metric-chips"><span>tokenizer time</span><span>time/MB</span><span>model runtime</span><span>context use</span><span>provider tokens</span><span>USD</span></div>
+      </div>
+      <div class="measurement-card">
+        <div class="measurement-head"><span class="index">04</span><strong>Source recovery</strong><span class="kind">Recorded + derived</span></div>
+        <div class="metric-chips"><span>visible output</span><span>hidden-vector result</span><span>attempts</span><span>failures</span><span>confirmed lower bound</span></div>
+      </div>
+    </div>
+    <div class="measurement-note">Recorded values are observed directly. Derived values include density ratios, context share, and recovery bounds.</div>
+  </div>
+</section>
+
+<!-- ============================ TOKENIZER ============================ -->
+<section id="tokenizer">
+  <h2><span class="n">02</span>How tokenization works</h2>
+  <p>
+    The tokenizers studied here are <strong>byte-level BPE</strong> (Byte-Pair Encoding). BPE is
+    learned from data: it starts with individual characters and repeatedly merges the most common
+    adjacent pair into a new piece. Its vocabulary contains thousands of numbered chunks,
+    including common words, word fragments, and punctuation clusters.
+  </p>
+
+  <p class="muted">
+    For a deeper walkthrough, watch Andrej Karpathy's
+    <a href="https://www.youtube.com/watch?v=zduSFxRajkE" target="_blank" rel="noopener noreferrer">Let's build the GPT Tokenizer</a>.
+    It's an excellent companion to this section.
+  </p>
+
+  <h3>The two stages</h3>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>1. Pre-tokenization</h3>
+      <p>
+        First the text is cut into rough chunks by pattern rules: letters run together,
+        punctuation clusters together, digits are often split off individually, spaces bind to
+        what follows. This decides what the merge step is allowed to operate on.
+      </p>
+    </div>
+    <div class="card">
+      <h3>2. Merging (BPE)</h3>
+      <p>
+        Each rough chunk is then broken into known vocabulary pieces using a fixed set of learned
+        merge rules. If a chunk has no known piece, the tokenizer falls back to raw bytes.
+      </p>
+    </div>
+  </div>
+
+  <h3>A worked example</h3>
+  <p>This long identifier shows how a byte-level BPE tokenizer splits a generated name:</p>
+<pre><span class="k">input:</span>  TokDemangleLike__std__basic_string__char__std__char_traits__alloc__vector_1
+
+<span class="k">tokens:</span> <span class="s">['Tok','Dem','angle','Like','__','std','__','basic','_string','__','char',
+        '__','std','__','char','_traits','__','alloc','__','vector','_','1']</span></pre>
+  <p class="muted">
+    The repeated parts reuse the same token pieces. For example, <code>__ std __ char</code>
+    appears more than once. Underscores also form their own pieces, which makes
+    underscore-separated names relatively easy to tokenize.
+  </p>
+
+  <div class="callout">
+    <strong>Vocabulary differences:</strong> the tokenizer's dictionary is the main reason results
+    differ between models. Two models can split the same characters into very different token
+    counts when their vocabularies differ.
+  </div>
+</section>
+
+<!-- ============================ FIXTURE ============================ -->
+<section id="fixture">
+  <h2><span class="n">03</span>The fixtures: real C programs</h2>
+  <p>
+    A <strong>fixture</strong> is a generated C source file with two jobs: be realistic (so it
+    compiles and looks like a real program) and carry controlled, very long names (so we can
+    measure the tokenizer on them).
+  </p>
+
+  <h3>Structure of a generated fixture</h3>
+  <div class="grid cols-3">
+    <div class="card">
+      <h3>Long names</h3>
+      <p>A typedef and several functions all share one long generated identifier, e.g.
+      <code>TokenizerBench__DemangleLike__…_R0</code>. The name appears many times.</p>
+    </div>
+    <div class="card">
+      <h3>Randomized bodies</h3>
+      <p>Each function does different 64-bit math (rotations, mixes, XORs) driven by per-function
+      constants, so the code isn't a trivial copy-paste.</p>
+    </div>
+    <div class="card">
+      <h3>Encrypted payload</h3>
+      <p>A plaintext message is stored encrypted as bytes in the binary and decrypted at runtime,
+      then printed. This makes correctness verifiable: compiling and running the program must
+      print the exact original message.</p>
+    </div>
+  </div>
+
+  <h3>The controls you can turn</h3>
+  <table>
+    <thead>
+      <tr><th>Control</th><th>What it changes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>--symbol-len N</code></td><td>Base length of the generated name.</td></tr>
+      <tr><td><code>--symbol-pad N</code></td><td>Appends <code>_Pad</code> plus N literal <code>X</code> characters. This creates an extreme, degenerate repetition on top of the base length.</td></tr>
+      <tr><td><code>--symbol-diverse-body</code></td><td>Builds the name from <em>distinct</em> segments instead of a repeating one, making it non-recurring (and more expensive to tokenize).</td></tr>
+      <tr><td><code>--segment-aligned</code></td><td>Ends the name on a whole <code>_segment</code> boundary instead of mid-word.</td></tr>
+      <tr><td><code>--symbol-prefix TEXT</code></td><td>Use your own name instead of the generated one.</td></tr>
+      <tr><td><code>--rounds N</code></td><td>How many near-identical functions to generate (multiplicity of the name).</td></tr>
+      <tr><td><code>--seed</code>, <code>--const-mode</code></td><td>Make generation fully reproducible.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Generate, compile, run</h3>
+<pre><span class="c"># create a fixture carrying a verifiable message</span>
+python3 gen_fixture.py generate --seed 0xdeadbeef --rounds 3 \
+    --symbol-len 256 --message HELLO_TOKENS --out fixture.c</pre>
+  <p class="muted">The generator prints the exact build command to use:</p>
+<pre><span class="k">Wrote</span> fixture.c
+<span class="k">Generated symbol prefix length:</span> 256 (requested base=256, pad=0)
+<span class="k">Compile with:</span>
+gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 fixture.c -o fixture.exe</pre>
+<pre><span class="c"># compile and run it</span>
+gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 fixture.c -o fixture.exe
+./fixture.exe
+<span class="s">HELLO_TOKENS</span></pre>
+  <p>
+    That last line is the point: the program decrypts its embedded payload at runtime, so the
+    fixture is <em>self-verifying</em>. A name change that breaks the C would fail to compile,
+    and a wrong cipher would print garbage instead of the message.
+  </p>
+
+  <h3>What the generated C actually looks like</h3>
+  <p class="muted">
+    Trimmed for readability. The real type name is 256 characters and appears on every line
+    below.
+  </p>
+<pre><span class="c">#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stddef.h&gt;</span>
+
+<span class="k">typedef struct</span> TokenizerBench__DemangleLike__std__basic_string__...__Dema_Type__LongRecord__With__Lots__Of__Nested__Like__Tokens {
+    uint64_t a;
+    uint64_t b;
+    uint64_t c;
+} TokenizerBench__DemangleLike__std__basic_string__...__Dema_Type__LongRecord__With__Lots__Of__Nested__Like__Tokens;
+
+<span class="k">__attribute__((used, noinline))
+uint32_t</span> TokenizerBench__DemangleLike__std__basic_string__..._R0(TokenizerBench__DemangleLike__..._Type__LongRecord__... *p) {
+    uint32_t m1 = xorshift32(0x9336956du ^ 0x31bbf978u ^ (uint32_t)p-&gt;a);
+    uint32_t m2 = xorshift32(0xcd6f55fcu ^ (uint32_t)p-&gt;b);
+    p-&gt;a ^= ((uint64_t)m1 &lt;&lt; 32) | (uint64_t)m2;
+    p-&gt;b += (uint64_t)(0x9336956du ^ m2);
+    <span class="c">/* ... 2 more lines of mixing ... */</span>
+    return (uint32_t)(r ^ (r &gt;&gt; 32));
+}
+
+<span class="c">/* ... one function per round (R0..R2), then: */</span>
+
+<span class="k">int</span> main(void) {
+    uint8_t encrypted[] = { 0x2f, 0xd0, 0x10, 0x66, 0xa3, 0x6c, 0x00, 0x79, 0x46, 0x90, 0x2a, 0x2a, 0x00 };
+    uint32_t s = derive_state(0xdeadbeef);
+
+    for (size_t i = 0; i &lt; sizeof(encrypted) - 1; i++) {
+        s = xorshift32(s + 0xA5A5A5A5u);
+        encrypted[i] ^= (uint8_t)(s &amp; 0xffu);
+    }
+
+    puts((const char *)encrypted);
+    return 0;
+}</pre>
+  <p class="muted">
+    Three parts work together: the <strong>long names</strong> (what we measure), the
+    <strong>per-function math</strong> (makes the code non-trivial), and the
+    <strong>encrypted byte array + runtime decryption</strong> (makes correctness provable).
+  </p>
+
+  <div class="callout">
+    <strong>Why plain-text C source?</strong> Earlier StressingLLMs tests generated C programs,
+    compiled them, and gave the resulting binaries to models for reverse-engineering evaluation.
+    This study keeps the same C fixture format but measures the source text directly. Reusing the
+    fixture family connects the tokenization work to the earlier compiled-binary experiments while
+    avoiding compiler and decompiler effects in the text measurements. For background, see
+    <a href="https://hooked-on-mnemonics.blogspot.com/2026/05/stressing-llms-triage-stage.html" target="_blank" rel="noopener noreferrer">Stressing LLMs: Triage Stage</a>.
+  </div>
+</section>
+
+<!-- ============================ SWEEPS ============================ -->
+<section id="sweeps">
+  <h2><span class="n">04</span>The experiments (sweeps)</h2>
+  <p>
+    A <strong>sweep</strong> generates many fixtures while varying exactly one property, then
+    measures the tokenizer on each. Holding everything else fixed is what makes the results
+    interpretable.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Sweep</th><th>Varies</th><th>Question it answers</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="pill">A</span> length</td><td>Name length 16 → 4096</td><td>Does making a repeating name longer keep compressing it?</td></tr>
+      <tr><td><span class="pill">B</span> padding</td><td>Trailing <code>X</code> run 0 → 4096</td><td>What happens with degenerate single-character repetition?</td></tr>
+      <tr><td><span class="pill">C</span> diversity</td><td>Repetitive vs. distinct segments</td><td>Is a <em>diverse</em> name worse than a repetitive one at equal length?</td></tr>
+      <tr><td><span class="pill">D</span> multiplicity</td><td>1 → 32 near-identical functions</td><td>Does repeating the name across functions help or hurt?</td></tr>
+      <tr><td><span class="pill">E</span> baselines</td><td>Short id, English, digits</td><td>Reference points to compare everything against.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>What gets measured</h3>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Tokens per character (tpc)</h3>
+      <p>The headline metric: how many tokens a string produces divided by its length. Lower
+      means cheaper. It normalizes away length so different strings can be compared fairly.</p>
+    </div>
+    <div class="card">
+      <h3>Round-trip validity</h3>
+      <p>Before reporting a count or timing, the measurement scripts decode one encoding and
+      require it to match the original text. This guards against silent normalization or input
+      corruption without including decode time in the timing samples.</p>
+    </div>
+  </div>
+
+  <p class="muted">
+    The fixtures are analyzed in two ways: the <strong>full text</strong> of the C file, and the
+    <strong>generated names</strong> in isolation (the type name and a function name), so we can
+    separate "the name's cost" from "the surrounding code's cost."
+  </p>
+</section>
+
+<!-- ============================ FINDINGS ============================ -->
+<section id="findings">
+  <h2><span class="n">05</span>What the project found</h2>
+  <p>
+    These measurements use two real tokenizer vocabularies from different model families.
+    Numbers are tokens per character (lower = cheaper). A spread between the two
+    columns means the result depends on the model's vocabulary.
+  </p>
+
+  <h3>Repetition stays cheap</h3>
+  <p>
+    A long, repeating name tokenizes about <strong>2× more cheaply</strong> than random text of
+    the same length. But there's a catch: it does <em>not</em> keep getting cheaper as it grows.
+    Repeating a pattern 64 times costs almost exactly 64× one repetition. The tokenizer emits
+    the same subword sequence each time.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Name length</th><th class="num">Tokens/char (model A)</th><th class="num">Tokens/char (model B)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>16</td><td class="num">0.188</td><td class="num">0.188</td></tr>
+      <tr><td>160</td><td class="num">0.281</td><td class="num">0.287</td></tr>
+      <tr><td>1024</td><td class="num">0.287</td><td class="num">0.296</td></tr>
+      <tr><td>4096</td><td class="num">0.288</td><td class="num">0.296</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">
+    The short 16-character case has a fixed-prefix effect. From 160 through 4,096 characters,
+    cost per character changes by about 3%. Long repetitive names are, counterintuitively, some
+    of the <em>cheapest</em> input a tokenizer can see.
+  </p>
+
+  <h3>Diversity is what actually costs more</h3>
+  <p>
+    A name built from <em>distinct</em> segments costs more per character than a repetitive one
+    because the tokenizer can no longer reuse the same pieces. Diversity, not length alone,
+    creates the stronger stress case.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Requested length</th><th class="num">Repetitive</th><th class="num">Diverse</th><th class="num">Ratio</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>64</td><td class="num">0.266</td><td class="num">0.459</td><td class="num">1.73×</td></tr>
+      <tr><td>256</td><td class="num">0.285</td><td class="num">0.465</td><td class="num">1.63×</td></tr>
+      <tr><td>1024</td><td class="num">0.287</td><td class="num">0.478</td><td class="num">1.66×</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">
+    Segment alignment makes the diverse names 61, 256, and 1,021 actual characters for requested
+    lengths 64, 256, and 1,024. Ratios use each generated name's actual character count.
+  </p>
+  <div class="callout">
+    A tempting idea is to keep a fixed body and just change the <em>ending</em> each time
+    (<code>body_1 body_2 …</code>). That <strong>does not</strong> raise cost. The repeating body
+    still dominates, and only the short suffix is new. The body itself has to change.
+  </div>
+
+  <h3>The cheapest and most expensive text, by type</h3>
+  <p>
+    Below is a concrete example of each kind of text, the <strong>actual UTF-8 bytes</strong> the
+    tokenizer receives, and how many tokens each produces. The byte column is the key: the
+    tokenizer never sees "characters." It sees this byte sequence.
+  </p>
+
+  <h4 style="margin-top:1.6rem">Cheap end of the spectrum</h4>
+
+  <h5 style="margin:1.2rem 0 .3rem">Short identifier: 2 tokens</h5>
+<pre><span class="k">text :</span>  <span class="s">compute_value</span>
+<span class="k">bytes:</span>  63 6F 6D 70 75 74 65 5F 76 61 6C 75 65      <span class="c">(13 bytes, plain ASCII)</span>
+<span class="k">tokens:</span>  2     <span class="c">-> 0.154 tokens/char   [model A]   [model B]</span></pre>
+
+  <h5 style="margin:1.2rem 0 .3rem">Natural English: 10 tokens</h5>
+<pre><span class="k">text :</span>  <span class="s">The quick brown fox jumps over the lazy dog.</span>
+<span class="k">bytes:</span>  54 68 65 20 71 75 69 63 6B 20 62 72 6F 77 6E 20 66 6F 78 20 6A
+         75 6D 70 73 20 6F 76 65 72 20 74 68 65 20 6C 61 7A 79 20 64 6F 67 2E
+<span class="k">tokens:</span>  10    <span class="c">-> 0.227 tokens/char   [model A]   [model B]</span></pre>
+
+  <h5 style="margin:1.2rem 0 .3rem">Repetitive demangle-style name: 12 tokens</h5>
+<pre><span class="k">text :</span>  <span class="s">TokenizerBench__DemangleLike__std__basic_string__</span>
+<span class="k">bytes:</span>  54 6F 6B 65 6E 69 7A 65 72 42 65 6E 63 68 5F 5F 44 65 6D 61 6E 67
+         6C 65 4C 69 6B 65 5F 5F 73 74 64 5F 5F 62 61 73 69 63 5F 73 74 72
+         69 6E 67 5F 5F                                <span class="c">(49 bytes)</span>
+<span class="k">tokens:</span>  12    <span class="c">-> 0.245 tokens/char   [model A]   [model B]</span></pre>
+  <p class="muted">
+    These 49 bytes use only 12 tokens. Repetition and familiar fragments make this input easy for
+    the tokenizer to compress.
+  </p>
+
+  <h4 style="margin-top:1.8rem">Expensive end of the spectrum</h4>
+
+  <h5 style="margin:1.2rem 0 .3rem">Random letters: 7 / 6 tokens</h5>
+<pre><span class="k">text :</span>  <span class="s">xkfjqzmwbp</span>
+<span class="k">bytes:</span>  78 6B 66 6A 71 7A 6D 77 62 70           <span class="c">(10 bytes, plain ASCII)</span>
+<span class="k">tokens:</span>  7 <span class="c">[model A]</span> /  6 <span class="c">[model B]</span>  <span class="c">-> 0.700 / 0.600 tokens/char</span></pre>
+  <p class="muted">
+    Nothing here is a common fragment, so the tokenizer cannot reuse much. The input has the same
+    bytes per character as an identifier but produces far more tokens.
+  </p>
+
+  <h5 style="margin:1.2rem 0 .3rem">Digits: 10 / 4 tokens (the ASCII worst case)</h5>
+<pre><span class="k">text :</span>  <span class="s">1234567890</span>
+<span class="k">bytes:</span>  31 32 33 34 35 36 37 38 39 30           <span class="c">(10 bytes, plain ASCII)</span>
+<span class="k">tokens:</span>  10 <span class="c">[model A]</span> / 4 <span class="c">[model B]</span>  <span class="c">-> 1.000 / 0.400 tokens/char</span></pre>
+  <p class="muted">
+    In plain ASCII, digits are the most expensive content: the digit-splitting rule isolates
+    <em>every</em> digit, so ten digits become ten tokens in model A. It is the cheapest way to
+    hit 1 token per character without using exotic Unicode.
+  </p>
+
+  <h5 style="margin:1.2rem 0 .3rem">Emoji: 4 / 2 tokens for one character</h5>
+<pre><span class="k">text :</span>  <span class="s">😀</span>                  <span class="c">(one single character)</span>
+<span class="k">bytes:</span>  F0 9F 98 80        <span class="c">(4 bytes -- UTF-8 needs 4 bytes for this code point)</span>
+<span class="k">tokens:</span>  4 <span class="c">[model A]</span> / 2 <span class="c">[model B]</span>  <span class="c">-> 4.000 / 2.000 tokens/char</span></pre>
+  <p class="muted">
+    Model A has no matching piece for this four-byte character and falls back to four raw-byte
+    tokens. Model B has emoji pieces in its vocabulary and uses only 2 tokens.
+  </p>
+
+  <h5 style="margin:1.2rem 0 .3rem">High-plane Unicode with no vocabulary entry: 4 / 4 tokens</h5>
+<pre><span class="k">text :</span>  <span class="s">𰀀</span>                  <span class="c">(U+30000, one single character)</span>
+<span class="k">bytes:</span>  F0 B0 80 80        <span class="c">(4 bytes)</span>
+<span class="k">tokens:</span>  4 <span class="c">[model A]</span> / 4 <span class="c">[model B]</span>  <span class="c">-> 4.000 / 4.000 tokens/char</span></pre>
+  <p class="muted">
+    Rare characters that <em>neither</em> vocabulary recognizes define the ceiling because both
+    models fall back to bytes. Four bytes give four tokens: 1 token per byte, the theoretical
+    maximum for byte-level tokenization. Unlike emoji, it is expensive in <em>both tested
+    vocabularies</em>.
+  </p>
+
+  <h4 style="margin-top:1.8rem">Summary table</h4>
+  <table>
+    <thead>
+      <tr>
+        <th>Content</th>
+        <th>Example</th>
+        <th class="num">Bytes</th>
+        <th class="num">Tokens (A)</th>
+        <th class="num">Tokens (B)</th>
+        <th class="num">Tokens/char (A)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Short identifier</td><td><code>compute_value</code></td><td class="num">13</td><td class="num">2</td><td class="num">2</td><td class="num">0.154</td></tr>
+      <tr><td>Natural English</td><td><code>The quick brown fox…</code></td><td class="num">44</td><td class="num">10</td><td class="num">10</td><td class="num">0.227</td></tr>
+      <tr><td>Repetitive name</td><td><code>TokenizerBench__Demangle…</code></td><td class="num">49</td><td class="num">12</td><td class="num">12</td><td class="num">0.245</td></tr>
+      <tr><td>Random letters</td><td><code>xkfjqzmwbp</code></td><td class="num">10</td><td class="num">7</td><td class="num">6</td><td class="num">0.700</td></tr>
+      <tr><td>Digits</td><td><code>1234567890</code></td><td class="num">10</td><td class="num">10</td><td class="num">4</td><td class="num">1.000</td></tr>
+      <tr><td>Emoji</td><td><code>😀</code></td><td class="num">4</td><td class="num">4</td><td class="num">2</td><td class="num">4.000</td></tr>
+      <tr><td>High-plane Unicode</td><td><code>𰀀</code> (U+30000)</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">4.000</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Observed pattern:</strong> cost rises as the tokenizer finds <em>less</em>
+    it recognizes. Familiar fragments → few tokens per character; nothing familiar → one token
+    per byte.
+  </div>
+
+  <h3>Vocabulary is a major factor</h3>
+  <div class="callout warn">
+    The same emoji is <strong>4 tokens</strong> in one model but <strong>2 tokens</strong> in the
+    other, because only one vocabulary contains multi-byte emoji pieces. Vocabulary is not the
+    only factor: pre-tokenization, normalization, byte fallback, and special-token handling can
+    also change the result. Any claim about "how a tokenizer behaves" should identify the complete
+    tokenizer configuration. There is no single model-independent answer.
+  </div>
+
+  <h3>Tokenizing stays fast</h3>
+  <p>
+    A long string made of one uninterrupted run of letters (no separators) is the shape most
+    likely to slow a tokenizer down, since it forms one giant chunk to merge. Measured on a real
+    tokenizer, cost grows essentially <strong>linearly</strong> with length:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Length (chars)</th><th class="num">Time</th><th class="num">Seconds per MB</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>16,000</td><td class="num">0.002 s</td><td class="num">0.13 s</td></tr>
+      <tr><td>128,000</td><td class="num">0.024 s</td><td class="num">0.19 s</td></tr>
+      <tr><td>512,000</td><td class="num">0.12 s</td><td class="num">0.23 s</td></tr>
+      <tr><td>2,000,000</td><td class="num">0.83 s</td><td class="num">0.42 s</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">
+    This is one captured run; absolute timing varies by machine. It shows no exploitable
+    super-linear blow-up. The interesting axis is <strong>token count</strong> (cost and context
+    pressure), not tokenizer speed.
+  </p>
+</section>
+
+<!-- ============================ GOAL ============================ -->
+<section id="goal">
+  <h2><span class="n">06</span>The goal: the most expensive text</h2>
+  <p>
+    The project's end goal is to characterize the <strong>worst case</strong>: text that produces
+    the most tokens for a given length. A dedicated script searches many candidate constructions
+    and measures each one, instead of assuming an answer.
+  </p>
+
+  <h3>Candidates it evaluates</h3>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Cheap by structure</h3>
+      <p>Repetitive names, short identifiers, and plain words all land near 0.2–0.3 tokens/char.</p>
+      <div class="bar"><i style="width:28%"></i></div>
+      <div class="legend">~0.28 tokens/char</div>
+    </div>
+    <div class="card">
+      <h3>Expensive by diversity</h3>
+      <p>The tokenizer cannot reuse much of a distinct-segment identifier or random letter string.</p>
+      <div class="bar wide"><i style="width:50%"></i></div>
+      <div class="legend">~0.5 tokens/char</div>
+    </div>
+    <div class="card">
+      <h3>Expensive by fallback</h3>
+      <p>Digits and rare multi-byte characters with no vocabulary entry force byte-by-byte output.</p>
+      <div class="bar hot"><i style="width:99%"></i></div>
+      <div class="legend">up to ~4 tokens/char</div>
+    </div>
+  </div>
+
+  <h3>Highest token density</h3>
+  <div class="callout bad">
+    <strong>Rare high-plane Unicode characters</strong> are the most expensive per character,
+    reaching roughly <strong>0.99 tokens per UTF-8 byte</strong> in <em>both</em> models, essentially
+    the theoretical maximum for byte-level tokenization. Emoji are also very
+    expensive in one model, but collapse in the other because that vocabulary contains emoji
+    pieces.
+  </div>
+  <p class="muted">
+    The fixture generator gained a diverse-body mode so a fixture can carry names that are
+    genuinely expensive to tokenize instead of using the cheaper repetitive default.
+  </p>
+</section>
+
+<!-- ============================ EXAMPLES ============================ -->
+<section id="examples">
+  <h2><span class="n">07</span>Examples you can run</h2>
+  <p>
+    Everything below is a real command with its real output. The runnable files, dependency list,
+    and setup check are included in the reproduction bundle. Start with <code>README.md</code>, or
+    follow the complete sequence in <code>MANUAL.md</code>. Run
+    <code>bash bootstrap.sh</code> once to create the local Python environment.
+  </p>
+  <p class="muted">
+    The scripts discover vocabularies in <code>tokenizer-data/</code> or through command-line paths.
+    The published measurements use two vocabularies, referred to as
+    <strong>model A</strong> (nemotron) and <strong>model B</strong> (deepseek), because the
+    interesting part is how the same text behaves differently in each.
+  </p>
+
+  <h3>Example 1: measure how many tokens a string produces</h3>
+  <p>The included <code>measure_tokens.py</code> counts a few different kinds of text:</p>
+<pre><span class="c">$ .venv/bin/python measure_tokens.py</span>
+<span class="s">  2 tokens /  13 chars = 0.154 tpc</span>
+<span class="s"> 19 tokens /  73 chars = 0.260 tpc</span>
+<span class="s"> 40 tokens /  10 chars = 4.000 tpc</span>
+<span class="s"> 10 tokens /  10 chars = 1.000 tpc</span></pre>
+  <p class="muted">
+    Read it as: a short normal identifier is cheap (0.154), a long repetitive name is still cheap
+    (0.260), ten emoji explode to 4 tokens each, and ten digits are exactly one token each.
+  </p>
+
+  <h3>Example 2: repetitive name vs. diverse name</h3>
+  <p>
+    Generate both name structures and tokenize them under the same conditions:
+  </p>
+<pre><span class="c">$ .venv/bin/python compare_names.py</span>
+<span class="s">repetitive   73 tokens / 256 chars = 0.285 tpc</span>
+<span class="s">diverse     119 tokens / 256 chars = 0.465 tpc</span>
+<span class="c"># the diverse name costs ~1.63x more per character</span></pre>
+  <p class="muted">
+    The length, alphabet, and tokenizer are the same. Only the <em>structure</em> differs. The diverse
+    name costs roughly 1.6× more, which is the whole finding in one line.
+  </p>
+
+  <h3>Example 3: search for the worst-case input</h3>
+  <p>
+    The project includes a script that tries many candidate constructions and reports which
+    produces the most tokens per character:
+  </p>
+<pre><span class="c">$ .venv/bin/python stress_tokenizer.py --quick \
+    --tokenizer nemotron=tokenizer-data/model-a.json \
+    --tokenizer deepseek=tokenizer-data/model-b.json</span>
+<span class="c"># selected rows from the complete output</span>
+<span class="k">candidate</span>           chars nemotron_tok nemotron_tpc deepseek_tok deepseek_tpc
+<span class="s">emoji_cyclic          500       1950     3.900       1100     2.200</span>
+<span class="s">emoji_random          500       1956     3.912       1106     2.212</span>
+<span class="s">highplane_oov         500       1981     3.962       1990     3.980</span>
+<span class="s">cjk_random            500        998     1.996        660     1.320</span>
+<span class="s">digits                500        500     1.000        167     0.334</span>
+<span class="s">random_letters        500        282     0.564        269     0.538</span>
+<span class="s">repetitive_ident      500        139     0.278        147     0.294</span>
+<span class="s">diverse_ident         500        247     0.494        237     0.474</span>
+<span class="s">single_letter_run     500        250     0.500         63     0.126</span>
+
+<span class="k">WINNER per tokenizer (max tokens/char):</span>
+<span class="s">  nemotron  -&gt; highplane_oov      tpc=3.962</span>
+<span class="s">  deepseek  -&gt; highplane_oov      tpc=3.980</span></pre>
+  <p class="muted">
+    Notice the two right-hand columns: the same input behaves differently in each model. The
+    winner, rare high-plane Unicode characters, is expensive in <em>both</em>, which is why it
+    beats emoji (emoji collapse in the deepseek model because its vocabulary knows them).
+  </p>
+
+  <h3>Example 4: verify a fixture decrypts correctly</h3>
+<pre><span class="c">$ python3 gen_fixture.py generate --seed 0xdeadbeef --rounds 3 \
+      --symbol-diverse-body --symbol-len 256 --message DIVERSE_OK --out div.c</span>
+<span class="k">Wrote</span> div.c
+<span class="k">Generated symbol prefix length:</span> 256 (requested base=256, pad=0)
+<span class="k">  note:</span> diverse body enabled (non-recurring segments, seeded by 0xdeadbeef)
+<span class="k">Compile with:</span>
+gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 div.c -o div.exe
+
+<span class="c">$ gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 div.c -o div.exe</span>
+<span class="c">$ ./div.exe</span>
+<span class="s">DIVERSE_OK</span></pre>
+  <p class="muted">
+    The printed line equals the message that was encrypted into the file. The fixture proves
+    itself.
+  </p>
+
+  <h3>Example 5: the highest-density tested fixture</h3>
+  <p>
+    Example 4 verified that a fixture <em>works</em>. This example builds the
+    <strong>highest-density fixture found among the tested constructions</strong> and measures how
+    expensive it is to tokenize the generated source. We use varied high-plane Unicode code
+    points that byte-level tokenizers have no vocabulary entry for. The generator places them across the
+    whole file.
+  </p>
+
+  <div class="callout warn">
+    <strong>Note on standards:</strong> these identifiers need <strong>C11 or later</strong>.
+    The characters are raw multi-byte UTF-8, which older standards do not allow in identifiers.
+    The practical situation depends on how strict the build is:
+    <ul style="margin:.5rem 0 0; padding-left:1.2rem">
+      <li><strong>C89:</strong> rejected, even by default (<code>stray '\360' in program</code>).</li>
+      <li><strong>C99:</strong> accepted by default by GCC, but <strong>rejected under strict
+          conformance</strong> (<code>-pedantic-errors</code>).</li>
+      <li><strong>C11 and later:</strong> accepted.</li>
+    </ul>
+    So the fixture is only portable to modern compilers, and every build command below uses
+    <code>-std=c11</code> for that reason. The generator emits these characters only when you
+    explicitly ask for them.
+  </div>
+
+  <h4 style="margin-top:1.4rem">Step 1: generate the Unicode fixture</h4>
+<pre><span class="c">$ python3 gen_fixture.py generate --seed 0xdeadbeef --rounds 8 \
+      --symbol-len 512 --symbol-unicode-body --message HARDEST_FIXTURE_OK --out hardest.c</span>
+<span class="k">Wrote</span> hardest.c
+<span class="k">Generated symbol prefix length:</span> 512 (requested base=512, pad=0)
+<span class="k">  note:</span> UNICODE body enabled (high-plane code points, ~4 tokens/char); requires -std=c11 or later to compile
+<span class="k">Compile with:</span>
+gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 hardest.c -o hardest.exe
+
+<span class="c">$ gcc -O0 -g3 -gdwarf-5 -fno-omit-frame-pointer -fno-inline -std=c11 hardest.c -o hardest.exe</span>
+<span class="c">$ ./hardest.exe</span>
+<span class="s">HARDEST_FIXTURE_OK</span></pre>
+  <p class="muted">
+    The file is <strong>19,794 characters</strong> but <strong>61,266 bytes</strong> because each
+    identifier character is 4 UTF-8 bytes. It still compiles and prints its message correctly.
+  </p>
+
+  <h4 style="margin-top:1.4rem">Anatomy of <code>hardest.c</code></h4>
+<pre class="code-wrap"><span class="c">// ---------------------------------------------------------------
+// header comment: seed, rounds, mode, and the suggested build command
+// ---------------------------------------------------------------</span>
+
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stddef.h&gt;
+
+<span class="c">// ---- 1) the type name: 512 high-plane code points (each 4 bytes) + ASCII suffix ----</span>
+typedef struct <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_Type__LongRecord__With__Lots__Of__Nested__Like__Tokens {
+    uint64_t a;
+    uint64_t b;
+    uint64_t c;
+} <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_Type__LongRecord__With__Lots__Of__Nested__Like__Tokens;
+
+<span class="c">// ---- 2) a small shared helper ----</span>
+static uint32_t xorshift32(uint32_t x) {
+    x ^= x &lt;&lt; 13;
+    x ^= x &gt;&gt; 17;
+    x ^= x &lt;&lt; 5;
+    return x;
+}
+
+<span class="c">// ---- 3) eight near-identical functions, ONE PER ROUND ----
+// each signature line is 1098 characters and contains the huge name TWICE</span>
+<span class="k">__attribute__((used, noinline))
+uint32_t</span> <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_R0(<span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_Type__... *p) {
+    uint32_t m1 = xorshift32(0x9336956du ^ 0x31bbf978u ^ (uint32_t)p-&gt;a);
+    uint32_t m2 = xorshift32(0xcd6f55fcu ^ (uint32_t)p-&gt;b);
+    p-&gt;a ^= ((uint64_t)m1 &lt;&lt; 32) | (uint64_t)m2;
+    p-&gt;b += (uint64_t)(0x9336956du ^ m2);
+    p-&gt;b = (p-&gt;b &lt;&lt; 10) | (p-&gt;b &gt;&gt; 54);
+    p-&gt;c = (p-&gt;c + p-&gt;a) ^ (uint64_t)(0x31bbf978u ^ 0xcd6f55fcu);
+    uint64_t r = p-&gt;a ^ p-&gt;b ^ p-&gt;c ^ (uint64_t)0x9336956du ^ ...;
+    return (uint32_t)(r ^ (r &gt;&gt; 32));
+}
+
+<span class="c">// ... the same shape repeats for R1, R2, R3, R4, R5, R6, R7 ...</span>
+
+<span class="c">// ---- 4) a driver that calls all eight functions in sequence ----</span>
+uint32_t derive_state(uint32_t seed) {
+    <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_Type__... x = { seed, seed ^ 0x12345678ULL, seed + 0x9ULL };
+    uint32_t s = seed;
+    s ^= <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_R0(&amp;x);
+    s ^= <span class="k">&lt;512 x U+30000..U+303FF&gt;</span>_R1(&amp;x);
+    <span class="c">/* ... R2 .. R7 ... */</span>
+    s = xorshift32(s);
+    return s;
+}
+
+<span class="c">// ---- 5) main(): decrypt the embedded message at runtime ----</span>
+int main(void) {
+    uint8_t encrypted[] = { 0x2a, 0xa3, 0x34, /* ... */, 0x00 };
+    uint32_t s = derive_state(0xdeadbeef);
+    for (size_t i = 0; i &lt; sizeof(encrypted) - 1; i++) {
+        s = xorshift32(s + 0xA5A5A5A5u);
+        encrypted[i] ^= (uint8_t)(s &amp; 0xffu);
+    }
+    puts((const char *)encrypted);   <span class="c">// prints HARDEST_FIXTURE_OK</span>
+    return 0;
+}</pre>
+  <p class="muted">
+    The identifier is abbreviated as <code>&lt;512 x U+30000..U+303FF&gt;</code> only for display.
+    in the file it is 512 real code points, which makes it the highest-density tested case. See the
+    "identifier in full" note below for why they are shown this way.
+  </p>
+
+  <h4 style="margin-top:1.4rem">Step 2: tokenize the generated C file</h4>
+<pre><span class="c">$ .venv/bin/python tokenize_file.py hardest.c</span>
+<span class="s">19,794 chars -> 57,674 tokens</span>
+<span class="s">2.9137 tokens per character</span>
+<span class="s">0.941 tokens per byte</span></pre>
+  <p class="muted">
+    Compare that with the diverse-body fixture at the same inputs:
+    <strong>9,498 tokens</strong> (0.481 tpc). The Unicode fixture is roughly
+    <strong>6×</strong> more expensive.
+  </p>
+
+  <h4 style="margin-top:1.4rem">Step 3: where the difficulty comes from</h4>
+<pre><span class="c">$ .venv/bin/python where_do_the_tokens_go.py hardest.c</span>
+<span class="s">name: 567 chars / 2103 bytes -> 2045 tokens</span>
+<span class="s">name appears 11 times</span>
+<span class="s">tokens spent on the name: ~22,495</span>
+<span class="s">share of all tokens: 39.0%</span></pre>
+
+  <div class="callout warn">
+    <strong>One repeated name accounts for 39% of every token in the file.</strong> The name is
+    567 characters but 2,103 bytes, costing 2,045 tokens, or about
+    <strong>0.97 tokens per byte</strong>, essentially the ceiling for byte-level tokenization.
+  </div>
+
+  <h4 style="margin-top:1.4rem">Step 4: the three name styles compared</h4>
+  <p>The seed, rounds, and length are identical. Only the naming mode changes:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name style</th>
+        <th class="num">Chars</th>
+        <th class="num">Bytes</th>
+        <th class="num">Tokens (A)</th>
+        <th class="num">Tokens/char (A)</th>
+        <th class="num">Tokens (B)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Repetitive (default)</td><td class="num">19,786</td><td class="num">19,786</td><td class="num">6,879</td><td class="num">0.348</td><td class="num">6,724</td></tr>
+      <tr><td>Diverse (<code>--symbol-diverse-body</code>)</td><td class="num">19,759</td><td class="num">19,759</td><td class="num">9,498</td><td class="num">0.481</td><td class="num">9,424</td></tr>
+      <tr><td><strong>Unicode OOV (<code>--symbol-unicode-body</code>)</strong></td><td class="num">19,794</td><td class="num">61,266</td><td class="num"><strong>57,674</strong></td><td class="num"><strong>2.914</strong></td><td class="num"><strong>57,701</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="muted">
+    All three rows were generated in the same directory with the same flags, only changing the
+    mode, and measured with the same tokenizer. Char totals include the header comment, which
+    embeds the output filename. Exact counts therefore shift slightly with the file name, while the
+    token counts and ratios are stable.
+  </p>
+  <p class="muted">
+    Two effects stack: the characters are non-recurring <em>and</em> every one of them is 4 bytes
+    with no vocabulary entry, so it falls back to raw bytes. That is why this mode is ~6× the
+    diverse fixture and ~8× the repetitive one. Unlike some Unicode inputs such as emoji,
+    it is expensive in <em>both</em> tokenizers.
+  </p>
+
+  <h4 style="margin-top:1.4rem">Step 5: what the difficulty means in practice</h4>
+  <div class="grid cols-3">
+    <div class="card">
+      <h3>Context window</h3>
+      <p><strong>45.1%</strong> of a 128k-token context window, from a 19,794-character,
+      61,266-byte source file.</p>
+    </div>
+    <div class="card">
+      <h3>Token-per-byte ceiling</h3>
+      <p><strong>0.941 tokens/byte</strong> across the whole file, near the theoretical maximum
+      of 1, since non-vocab characters produce one token per byte.</p>
+    </div>
+    <div class="card">
+      <h3>vs. ordinary C</h3>
+      <p>A typical small C file tokenizes at ~0.40 tokens/char. This one is <strong>~7×</strong>
+      that, for the same language.</p>
+    </div>
+  </div>
+
+  <h5 style="margin:1.4rem 0 .3rem">How the hard name splits</h5>
+<pre><span class="k">first 8 tokens of the generated name:</span>
+<span class="s">['ð', '°', 'Ģ', '§', 'ð', '°', 'į', '©']</span></pre>
+  <p class="muted">
+    Those are the byte-level representations of the raw UTF-8 bytes. The tokenizer has no piece
+    for these code points, so each byte becomes one token. That is exactly the fallback behaviour
+    that creates this high-density case.
+  </p>
+
+  <h5 style="margin:1.4rem 0 .3rem">The generated identifier, up close</h5>
+  <p class="muted">
+    The identifier is shown as code points because most fonts render U+30000–U+303FF as blank or
+    tofu boxes. The tokenizer likewise has no entry for these uncommon characters.
+  </p>
+<pre class="code-wrap"><span class="c">body: 512 characters, code points U+30000 .. U+303FF, each 4 UTF-8 bytes</span>
+<span class="s">U+30027 U+30369 U+303C1 U+30368 U+30305 U+303B8 U+302A6 U+30328 U+302EB U+30343
+U+3030C U+30224 U+30235 U+30202 U+3016B U+30285 U+3031F U+30116 U+303E6 U+3034B
+... (492 more, all in the same range) ...
+
+<span class="c">+ ASCII suffix (55 chars):</span>
+_Type__LongRecord__With__Lots__Of__Nested__Like__Tokens</span></pre>
+  <p class="muted">
+    The 512 body characters contain <strong>407 distinct code points</strong>, so there is almost
+    no repetition for the tokenizer to exploit. (Counting the ASCII suffix too, the full 567-char
+    name has 429 distinct characters.)
+  </p>
+
+  <div class="callout">
+    <strong>What the measurements show:</strong> unfamiliar input can cost more than longer,
+    familiar text. A 19,794-character (61,266-byte) file of dense high-plane Unicode costs
+    <strong>57,674 tokens</strong>: more than a large real-world source file several times its
+    size. Cost tracks <em>familiarity</em>, not length.
+  </div>
+</section>
+
+<!-- ============================ SOURCE RECOVERY ============================ -->
+<section id="source-recovery">
+  <h2><span class="n">08</span>Source-recovery benchmark</h2>
+  <p>
+    The tokenizer experiments establish the mechanism: at nearly the same source-character
+    count, high-plane Unicode produces about <strong>6×</strong> as many tokens as diverse ASCII
+    and <strong>8.4×</strong> as many as repetitive ASCII. The source-recovery test asks whether a
+    model can recover the program's decryption algorithm while processing that much irrelevant
+    token pressure.
+  </p>
+
+  <div class="callout">
+    <strong>Source-only benchmark.</strong> The model receives the complete C source directly,
+    without Ghidra or other analysis tools. An earlier Ghidra-mediated path truncated very long
+    names to roughly 1,006 characters before the model saw them. Direct source delivery removes
+    that measurement artifact.
+  </div>
+
+  <h3>Test design</h3>
+  <div class="grid cols-3">
+    <div class="card">
+      <h3>Hold the algorithm fixed</h3>
+      <p>Every tested fixture uses five generated rounds, seed <code>0xDEADBEEF</code>, constant
+      seed <code>0xC001D00D</code>, and the same visible message.</p>
+    </div>
+    <div class="card">
+      <h3>Increase Unicode pressure</h3>
+      <p>Only the high-plane Unicode symbol length changes: 1,024, 2,048, then 4,096 characters.
+      The complete source is embedded inline in the initial request.</p>
+    </div>
+    <div class="card">
+      <h3>Grade general recovery</h3>
+      <p>A pass requires one Python decoder, exact visible output, no plaintext literal, and a
+      successful unseen seed/ciphertext vector using the same round functions.</p>
+    </div>
+  </div>
+
+  <h3>GPT 6 Astra results</h3>
+  <p>
+    GPT 6 Astra was the only model that completed the new high-length inline series. OpenCode's
+    free-model path began <a href="https://github.com/anomalyco/opencode/issues/49433" target="_blank" rel="noopener noreferrer">rejecting automated requests</a> during the experiment. Those provider
+    errors are excluded from model grading.
+  </p>
+
+  <div class="metric-grid">
+    <div class="metric"><span class="label">Graded attempts</span><strong class="obs">3 / 3 pass</strong><span class="muted">Visible and hidden vectors</span></div>
+    <div class="metric"><span class="label">Confirmed lower bound</span><strong>4,096</strong><span class="muted">Unicode symbol characters</span></div>
+    <div class="metric"><span class="label">Largest request</span><strong>299,591</strong><span class="muted">Total provider-reported tokens</span></div>
+    <div class="metric"><span class="label">Runtime range</span><strong>23.0–24.5 s</strong><span class="muted">No observed latency growth</span></div>
+  </div>
+
+  <div class="table-scroll">
+    <table class="source-results">
+      <thead>
+        <tr>
+          <th>Unicode<br>length</th>
+          <th>Outcome</th>
+          <th class="num">Source<br>chars</th>
+          <th class="num">Source<br>bytes</th>
+          <th class="num">Cache-write<br>tokens</th>
+          <th class="num">Output<br>tokens</th>
+          <th class="num">Total<br>tokens</th>
+          <th class="num">Runtime</th>
+          <th class="num">Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1,024</td><td><span class="pill ok">Pass</span></td><td class="num">22,807</td><td class="num">78,103</td><td class="num">78,227</td><td class="num">1,162</td><td class="num">79,392</td><td class="num">23.0 s</td><td class="num">$1.03597</td></tr>
+        <tr><td>2,048</td><td><span class="pill ok">Pass</span></td><td class="num">41,239</td><td class="num">151,831</td><td class="num">151,756</td><td class="num">1,121</td><td class="num">152,880</td><td class="num">24.5 s</td><td class="num">$1.95303</td></tr>
+        <tr><td>4,096</td><td><span class="pill ok">Pass</span></td><td class="num">78,103</td><td class="num">299,287</td><td class="num">298,670</td><td class="num">918</td><td class="num">299,591</td><td class="num">24.3 s</td><td class="num">$7.53566</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">
+    These are OpenCode's provider counters, not Nemotron or DeepSeek tokenizer counts. OpenCode
+    classified almost the whole inline source as <em>cache write</em> and only three tokens as
+    ordinary input in each attempt. The categories are billing labels; total context is the
+    meaningful comparison.
+  </p>
+
+  <h4>Context grew while runtime stayed flat</h4>
+  <div class="card">
+    <h3 style="margin-top:0">Provider-reported total tokens</h3>
+    <div class="result-bars">
+      <div class="result-row"><span>1,024</span><div class="bar"><i style="width:26.5%"></i></div><span class="value">79,392</span></div>
+      <div class="result-row"><span>2,048</span><div class="bar"><i style="width:51.0%"></i></div><span class="value">152,880</span></div>
+      <div class="result-row"><span>4,096</span><div class="bar tier-bar"><i style="width:100%"></i><span class="tier-line"></span><span class="tier-label">272K price tier</span></div><span class="value">299,591</span></div>
+    </div>
+    <p class="muted">
+      From 1,024 to 4,096, total token traffic grew 3.77×. Runtime stayed near 24 seconds,
+      output fell from 1,162 to 918 tokens, and every hidden test still passed. Across these three
+      attempts, the added Unicode increased cost without a measured correctness or latency penalty.
+    </p>
+  </div>
+
+  <h3>Cost at 4,096 characters</h3>
+  <p>
+    More tokens increased cost once by increasing request size. They increased it a second time
+    by crossing GPT 6 Astra's <strong>272K-token long-context pricing boundary</strong>.
+    OpenCode's recorded rates at the time were:
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Context tier</th><th class="num">Input / 1M</th><th class="num">Output / 1M</th><th class="num">Cached read / 1M</th><th class="num">Cached write / 1M</th></tr></thead>
+      <tbody>
+        <tr><td>At or below 272K</td><td class="num">$10.00</td><td class="num">$50.00</td><td class="num">$1.00</td><td class="num">$12.50</td></tr>
+        <tr><td>Above 272K</td><td class="num">$20.00</td><td class="num">$75.00</td><td class="num">$2.00</td><td class="num">$25.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+<pre><span class="c">4,096-character fixture:</span>
+298,670 cache-write tokens × $25 / 1M = <span class="s">$7.46675</span>
+    918 output tokens      × $75 / 1M = <span class="s">$0.06885</span>
+      3 input tokens       × $20 / 1M = <span class="s">$0.00006</span>
+                                          <span class="s">──────────
+                                      total $7.53566</span></pre>
+  <p class="muted">
+    At the lower tier, the same token counts would have cost about <strong>$3.77931</strong>.
+    The increase comes from a billing threshold, not a cache failure or technical cache limit.
+    Provider pricing can change; these values record the rates applied to the stored attempts.
+  </p>
+
+  <h3>Earlier Muse source-recovery observations</h3>
+  <p>
+    Muse Spark 1.3 completed an earlier attachment-based series. It passed at length 832, then
+    submitted incorrect decryptors twice at 896 and twice at 1,024. Astra later passed the exact
+    same 1,024-character generated source and continued through 4,096.
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Model</th><th>Delivery</th><th class="num">Unicode length</th><th class="num">Attempts</th><th class="num">Passes</th><th>Observed result</th></tr></thead>
+      <tbody>
+        <tr><td>Muse Spark 1.3</td><td>Attachment</td><td class="num">832</td><td class="num">1</td><td class="num">1</td><td><span class="pill ok">Pass</span></td></tr>
+        <tr><td>Muse Spark 1.3</td><td>Attachment</td><td class="num">896</td><td class="num">2</td><td class="num">0</td><td><span class="pill no">Incorrect decoder</span></td></tr>
+        <tr><td>Muse Spark 1.3</td><td>Attachment</td><td class="num">1,024</td><td class="num">2</td><td class="num">0</td><td><span class="pill no">Incorrect decoder</span></td></tr>
+        <tr><td>GPT 6 Astra</td><td>Inline</td><td class="num">1,024–4,096</td><td class="num">3</td><td class="num">3</td><td><span class="pill ok">All pass</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout warn">
+    <strong>These runs do not provide a controlled model ranking.</strong> Muse and Astra used
+    different source-delivery paths, and each Astra length has only one attempt. The results may
+    reflect different tolerance to this fixture, but they do not support a general model ranking.
+  </div>
+
+  <p class="muted">
+    The Unicode generator draws with replacement from 1,024 high-plane code points while avoiding
+    adjacent duplicates. The 4,096-character symbol contained 997 unique characters. Past 1,024,
+    added length mainly increases repetition and context volume; the alphabet stays fixed.
+  </p>
+
+  <h3>Infrastructure events excluded from model results</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Length</th><th>Classification</th><th>What happened</th></tr></thead>
+      <tbody>
+        <tr><td>2,048</td><td><span class="pill">Harness error</span></td><td>The first attempt hit the local operating system argument-size limit before inference. Large prompts were then piped through stdin.</td></tr>
+        <tr><td>4,096</td><td><span class="pill">Provider error</span></td><td>The first attempt was rejected by the workspace monthly spending limit. No model response was produced.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>Source-recovery result:</strong> the original project showed that unfamiliar high-plane Unicode
+    is extraordinarily expensive to tokenize. Source recovery showed that Astra could still
+    ignore that noise and reconstruct the five-round decoder at nearly 300K reported tokens.
+    In the tested range, context cost became the practical constraint before model correctness.
+  </div>
+
+  <h3>Security implications</h3>
+  <p>
+    The controlled measurements establish an input-amplification mechanism. At nearly the same
+    source-character count, the Unicode fixture used about 6 times as many tokens as diverse ASCII
+    and 8.4 times as many as repetitive ASCII. Increasing the high-plane Unicode body also pushed
+    the provider request across a more expensive context-pricing tier. Character-count limits alone
+    would not reveal either effect.
+  </p>
+  <div class="callout warn">
+    <strong>Abuse hypothesis, not a demonstrated exploit.</strong> A system that automatically sends
+    untrusted source code to an LLM could be made to spend more money or consume more context by
+    accepting extremely long identifiers filled with uncommon four-byte code points. This is
+    particularly relevant to automated code review, malware triage, and other security products
+    whose inputs may be controlled by the subject being analyzed. Enough amplification could
+    exhaust a request budget, cross a billing threshold, reduce how much surrounding evidence fits
+    in context, or trigger truncation before analysis begins.
+  </div>
+  <p>
+    The experiment did not demonstrate an outage, missed vulnerability, or dependable model
+    failure. Tokenization time remained close to linear, and Astra completed all three tested
+    fixtures. The supported concern is therefore context and billing amplification, with possible
+    downstream analysis loss if a product handles oversized input poorly.
+  </p>
+  <p class="muted">
+    Defensive validation should measure UTF-8 bytes and tokens with the deployed model's tokenizer,
+    not characters alone. Products can flag extreme token density or identifier length, enforce
+    per-request context and spending limits, and replace repeated hostile identifiers with stable
+    placeholders in the model-facing copy while preserving an exact mapping to the original source.
+    Rejection or truncation should be explicit and structure-aware. Unicode normalization alone is
+    insufficient because valid high-plane code points may remain unchanged.
+  </p>
+
+  <p class="muted">
+    These archived provider results are included for inspection in the reproduction bundle,
+    but its offline verifier does not rerun them:
+    full analysis · campaign index · 1,024 report · 2,048 report · 4,096 report
+  </p>
+</section>
+
+<!-- ============================ GLOSSARY ============================ -->
+<section id="glossary">
+  <h2><span class="n">09</span>Glossary</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3>Token</h3><p>A subword chunk read by a model. It may be shorter than a word or span several characters.</p></div>
+    <div class="card"><h3>Tokenizer</h3><p>The program that converts text into tokens using a fixed vocabulary and merge rules.</p></div>
+    <div class="card"><h3>Vocabulary</h3><p>The dictionary of known pieces. Different models have different vocabularies.</p></div>
+    <div class="card"><h3>High-plane Unicode</h3><p>An informal term used here for Unicode code points above the Basic Multilingual Plane, starting at U+10000. The fixtures use U+30000 through U+303FF; each code point occupies four bytes in UTF-8 and is uncommon in tokenizer vocabularies.</p></div>
+    <div class="card"><h3>BPE (Byte-Pair Encoding)</h3><p>A method that learns frequent character pairs and merges them into larger pieces.</p></div>
+    <div class="card"><h3>Pre-tokenization</h3><p>The rule-based first cut of text into rough chunks before merging.</p></div>
+    <div class="card"><h3>Byte fallback</h3><p>When a character is not in the vocabulary, it is emitted as one token per raw byte. Byte fallback is the expensive case.</p></div>
+    <div class="card"><h3>Cache-write tokens</h3><p>Prompt tokens billed while a provider creates a reusable prompt-cache entry. They are separate from ordinary input, output, and cache-read tokens. In these one-shot attempts, nearly all inline source text was classified as cache write. This increased cost but did not indicate an error or technical cache limit.</p></div>
+    <div class="card"><h3>Tokens per character (tpc)</h3><p>Token count divided by length. The primary cost metric here.</p></div>
+    <div class="card"><h3>Fixture</h3><p>A generated, compilable C program carrying a controlled identifier and a verifiable encrypted message.</p></div>
+    <div class="card"><h3>Sweep</h3><p>A series of fixtures varying one property, measured together.</p></div>
+    <div class="card"><h3>Repetition ratio</h3><p>How much cheaper a repeated pattern is than its non-repeated equivalent.</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <strong>StressingLLMs Tokens.</strong> A study of how text becomes tokens, and what makes
+      that conversion expensive. Results are measured on real byte-level BPE tokenizers from two
+      model families; because vocabularies differ, findings are reported per tokenizer. This
+      extended copy also reports exploratory source-recovery attempts and keeps provider or
+      harness errors separate from model failures.
+    </p>
+    <p>
+      <a href="https://github.com/alexander-hanel/StressingLLMs" target="_blank" rel="noopener noreferrer">github.com/alexander-hanel/StressingLLMs</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+/* Recorded observations only. No network calls and no live inference. */
+'use strict';
+const samples = {
+  identifier: {display:'compute_value',text:'compute_value',a:2,b:2,note:'Thirteen ASCII characters become two tokens in each tested vocabulary.'},
+  digits: {display:'1234567890',text:'1234567890',a:10,b:4,note:'Nemotron splits these ten digits into ten tokens; DeepSeek represents them with four.'},
+  emoji: {display:'😀',text:'😀',a:4,b:2,note:'One character, four UTF-8 bytes, and two different token counts: vocabulary and tokenizer rules matter.'},
+  unicode: {display:'U+30000',text:String.fromCodePoint(0x30000),a:4,b:4,note:'This four-byte character uses four tokens in both tested vocabularies.'}
+};
+const el = id => document.getElementById(id);
+const fmt = value => value.toLocaleString('en-US');
+function press(selector, selected) {
+  document.querySelectorAll(selector).forEach(button => button.setAttribute('aria-pressed', String(button === selected)));
+}
+function renderSample(key) {
+  const sample=samples[key], bytes=new TextEncoder().encode(sample.text), chars=Array.from(sample.text).length;
+  el('sample-display').textContent=sample.display;
+  el('sample-bytes').textContent=Array.from(bytes,b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+  el('sample-size').textContent=`${chars} character${chars===1?'':'s'} · ${bytes.length} UTF-8 bytes`;
+  for(const model of ['a','b']) {
+    el(`${model}-count`).textContent=`${sample[model]} tokens`;
+    el(`${model}-blocks`).replaceChildren(...Array.from({length:sample[model]},()=>document.createElement('i')));
+  }
+  el('sample-explanation').textContent=sample.note;
+}
+document.querySelectorAll('[data-sample]').forEach(button=>button.addEventListener('click',()=>{press('[data-sample]',button);renderSample(button.dataset.sample);}));
+const fixtures=[
+  {name:'Repetitive',chars:19786,bytes:19786,a:6879,b:6724},
+  {name:'Diverse ASCII',chars:19759,bytes:19759,a:9498,b:9424},
+  {name:'Unicode',chars:19794,bytes:61266,a:57674,b:57701}
+];
+let measure='tokens';
+function renderFixtures() {
+  const model=el('fixture-model').value;
+  const values=fixtures.map(row=>row[model]/(measure==='character'?row.chars:measure==='byte'?row.bytes:1));
+  const maximum=Math.max(...values);
+  el('chart-unit').textContent={tokens:'TOKENS / COMPLETE SOURCE',character:'TOKENS / CHARACTER',byte:'TOKENS / UTF-8 BYTE'}[measure];
+  el('fixture-chart').replaceChildren(...fixtures.map((row,index)=>{
+    const container=document.createElement('div'); container.className='fixture-row';
+    const label=document.createElement('span');label.textContent=row.name;
+    const sub=document.createElement('small');sub.textContent=`${fmt(row.bytes)} bytes`;label.append(sub);
+    const track=document.createElement('div');track.className='fixture-track';track.setAttribute('aria-hidden','true');
+    const bar=document.createElement('i');bar.style.width=`${values[index]/maximum*100}%`;track.append(bar);
+    const output=document.createElement('output');output.textContent=measure==='tokens'?fmt(values[index]):values[index].toFixed(3);
+    container.append(label,track,output);return container;
+  }));
+  el('amplification').textContent=`${(values[2]/values[0]).toFixed(2)}×`;
+  el('amplification-text').textContent={tokens:'as many tokens as the repetitive fixture. The Unicode file also contains more UTF-8 bytes.',character:'the token density per character of the repetitive fixture. Unicode characters can use more bytes.',byte:'the token density per UTF-8 byte of the repetitive fixture. The comparison changes when you account for file size.'}[measure];
+}
+document.querySelectorAll('[data-measure]').forEach(button=>button.addEventListener('click',()=>{measure=button.dataset.measure;press('[data-measure]',button);renderFixtures();}));
+el('fixture-model').addEventListener('change',renderFixtures);
+const attempts=[
+  {length:1024,write:78227,output:1162,input:3,writeRate:12.5,outputRate:50,inputRate:10},
+  {length:2048,write:151756,output:1121,input:3,writeRate:12.5,outputRate:50,inputRate:10},
+  {length:4096,write:298670,output:918,input:3,writeRate:25,outputRate:75,inputRate:20}
+];
+function renderAttempt(index) {
+  const attempt=attempts[index];let total=0;
+  el('receipt-length').textContent=fmt(attempt.length);
+  for(const category of ['write','output','input']) {
+    const cost=attempt[category]*attempt[`${category}Rate`]/1e6;total+=cost;
+    el(`${category}-detail`).textContent=`${fmt(attempt[category])} × $${attempt[`${category}Rate`]} / million`;
+    el(`${category}-cost`).textContent=`$${cost.toFixed(5)}`;
+  }
+  el('total-cost').textContent=`$${total.toFixed(5)}`;
+  el('tier-explanation').textContent=index===2?'Above 272K: cache-write pricing doubles. The same counts at the lower tier would cost $3.77931.':'Within the lower pricing tier. Nearly all input was classified as cache write by the provider.';
+}
+document.querySelectorAll('[data-attempt]').forEach(button=>button.addEventListener('click',()=>{press('[data-attempt]',button);renderAttempt(Number(button.dataset.attempt));}));
+// Keep the full source available without making it dominate the reading flow.
+document.querySelectorAll('main pre').forEach(pre=>{
+  if(pre.textContent.split('\n').length<24)return;
+  const details=document.createElement('details');details.className='code-disclosure';
+  const summary=document.createElement('summary');summary.textContent='Inspect the C source excerpt';
+  pre.before(details);details.append(summary,pre);
+});
+document.querySelectorAll('main table').forEach(table=>{
+  if(table.parentElement.classList.contains('table-scroll'))return;
+  const wrap=document.createElement('div');wrap.className='mock-table-scroll';wrap.tabIndex=0;
+  wrap.setAttribute('role','region');wrap.setAttribute('aria-label','Research data table');table.before(wrap);wrap.append(table);
+});
+const chapters=Array.from(document.querySelectorAll('main section'));
+function updatePosition() {
+  const scrollable=document.documentElement.scrollHeight-window.innerHeight;
+  el('reading-progress').style.width=`${scrollable>0?window.scrollY/scrollable*100:0}%`;
+  let active=chapters[0].id;
+  for(const chapter of chapters)if(chapter.getBoundingClientRect().top<window.innerHeight*.3)active=chapter.id;
+  document.querySelectorAll('nav a[href^="#"]').forEach(link=>{
+    if(link.hash===`#${active}`)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');
+  });
+}
+let positionPending=false;
+window.addEventListener('scroll',()=>{if(!positionPending){positionPending=true;requestAnimationFrame(()=>{updatePosition();positionPending=false;});}},{passive:true});
+window.addEventListener('resize',updatePosition);
+renderSample('unicode');renderFixtures();renderAttempt(2);updatePosition();
+</script>
+</body>
+</html>
