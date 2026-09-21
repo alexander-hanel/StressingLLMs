@@ -13,10 +13,14 @@ This repo is for static-analysis testing, reverse-engineering practice, and eval
 - **OpenCode Model Results**
   <https://alexander-hanel.github.io/StressingLLMs/opencode.html>
 
+- **Tokenization**
+  <https://alexander-hanel.github.io/StressingLLMs/tokens.html>
+
+
 **Tokenization experiments:** [tokenization-repro/](tokenization-repro/) contains a standalone set of
 Python examples, dependencies, tests, and tokenizer data for comparing token counts across ASCII
 and Unicode inputs. See its [README](tokenization-repro/README.md) for setup and
-[manual](tokenization-repro/MANUAL.md) for commands and expected results.
+[manual](tokenization-repro/MANUAL.md) for commands and expected results. Note: I still need to do validation on a seperate machine. 
 
 ## Overview
 
